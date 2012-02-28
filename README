@@ -1,0 +1,3 @@
+Some general purposes scripts for sending data to Graphite.
+
+* linux/ - Contains scripts for Linux Hosts
