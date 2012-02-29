@@ -33,7 +33,9 @@ fi
 
 # Caching
 CARBON_STASH="/tmp/carbon_stash.$$"
+declare -r CARBON_STASH
 CACHE_DISKS="/tmp/cache.monitor.disks"
+[ -f "$CARBON_STASH" ] && rm -f $CARBON_STASH;
 
 #------------------------------------------------------------------------#
 # Constants
@@ -47,24 +49,18 @@ declare -r disks_prefixes
 
 #------------------------------------------------------------------------#
 # Globals
-declare -a metrics
 declare -a disks
 
 #------------------------------------------------------------------------#
 # Function Declarations
 function add_metric() {
-    metrics[${#metrics[*]}]="${CARBON_BASE}.${HOST}.$1";
+    echo "${CARBON_BASE}.${HOST}.$1 $RUN_TIME" >> $CARBON_STASH;
     (( $DEBUG )) && echo $1;
 }
 
 function send_to_carbon() {
-    [ -f "$CARBON_STASH" ] && rm -f $CARBON_STASH;
-
-    for metric in "${metrics[@]}"; do
-        echo "$metric $RUN_TIME" >> $CARBON_STASH; 
-    done;
-
     nc $CARBON_HOST $CARBON_PORT < $CARBON_STASH;
+    [[ $DEBUG -gt 2 ]] && cat $CARBON_STASH;
     rm -f $CARBON_STASH;
 }
 

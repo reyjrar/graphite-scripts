@@ -142,7 +142,7 @@ done < /tmp/cache.monitors.df;
 rm -f /tmp/cache.monitors.df;
 #------------------------------------------------------------------------#
 # Network Statistics
-for nic in `route -n |grep -v Kernel|grep -v Gateway|awk '{print $8}'|sort -u`; do
+for nic in `/sbin/route -n |grep -v Kernel|grep -v Gateway|awk '{print $8}'|sort -u`; do
     (( $DEBUG )) && echo "Fetching interface statistics for $nic";
     /sbin/ifconfig $nic |grep packets| while read line; do
         set -- $line;
