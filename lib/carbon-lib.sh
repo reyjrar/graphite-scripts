@@ -3,6 +3,8 @@
 # Setup Environment and Declare functions for Graphite
 # enabled shell scripting
 #
+# Override Defaults with /etc/sysconfig/carbon-endpoint
+#
 # To see debugging information, export DEBUG=1
 #
 # To use, source this file, then add metrics:

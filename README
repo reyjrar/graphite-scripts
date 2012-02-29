@@ -4,7 +4,7 @@ Some general purposes scripts for sending data to Graphite.
  * carbon-lib.sh - provides simple access to sending
    data with to your carbon server.
 
-   References /etc/sysconfig/carbon-backend
+   References /etc/sysconfig/carbon-endpoint
 
 * bin/
  * linux_basic_performance_data.sh - makes heavy use of /proc to
