@@ -1,3 +1,18 @@
 Some general purposes scripts for sending data to Graphite.
 
-* linux/ - Contains scripts for Linux Hosts
+* lib/
+ * carbon-lib.sh - provides simple access to sending
+   data with to your carbon server.
+
+   References /etc/sysconfig/carbon-backend
+
+* bin/
+ * linux_basic_performance_data.sh - makes heavy use of /proc to
+   extract performance metrics for linux systems and send them to
+   a carbon cache.
+
+ * time_to_graphite.sh - Wrapper script to time a command, sending
+   timings to carbon for archival and graphing.
+
+   usage: time_to_graphite.sh git-status git status
+

@@ -5,85 +5,15 @@
 # as often as you'd like.
 #
 # Brad Lhotsky <brad.lhotsky@gmail.com>
-
+#
 #------------------------------------------------------------------------#
-# Carbon Server Configuration
-CARBON_HOST="graphite"
-CARBON_PORT="2003"
-CARBON_BASE="tmp"
-
-# Read in System Config
-if [ -f "/etc/sysconfig/carbon-endpoint" ]; then
-    . /etc/sysconfig/carbon-endpoint
-fi
-
-# Caching
-CARBON_STASH="/tmp/carbon_stash"
-CACHE_DISKS="/tmp/cache.monitor.disks"
-
-#------------------------------------------------------------------------#
-# Constants
-HOST=`hostname -s`
-declare -r HOST
-RUN_TIME=`date +%s`
-declare -r RUN_TIME
-# Hard Disk Monitoring
-disk_prefixes=( 'sd' 'hd' 'c0d' 'c1d' )
-declare -r disks_prefixes
-
-#------------------------------------------------------------------------#
-# Globals
-declare -a metrics
-declare -a disks
-
-#------------------------------------------------------------------------#
-# Function Declarations
-function add_metric() {
-    metrics[${#metrics[*]}]="${CARBON_BASE}.${HOST}.$1";
-}
-
-function send_to_carbon() {
-    [ -f "$CARBON_STASH" ] && rm -f $CARBON_STASH;
-
-    for metric in "${metrics[@]}"; do
-        echo "$metric $RUN_TIME" >> $CARBON_STASH; 
-    done;
-
-    nc $CARBON_HOST $CARBON_PORT < $CARBON_STASH;
-}
-
-function find_disks_to_check() {
-    if [ -f "$CACHE_DISKS" ]; then
-        . $CACHE_DISKS;
-    fi;
-
-    if [ ${#disks} -gt 0 ]; then
-        (( $DEBUG )) && echo "disk_check: retrieved from cache";
-    else
-        if [ -f /proc/partitions ]; then
-            while read line
-            do
-                disk=`echo $line |awk '{print $4}'`;
-                for prefix in "${disk_prefixes[@]}"; do
-                    if [ "X$disk" == "X" ]; then
-                        continue;
-                    fi;
-                    matched=`expr match $disk $prefix`;
-                    (( $DEBUG )) && echo " => check: expr match $disk $prefix : $matched";
-                    if [ $matched -gt 0 ]; then
-                        disks[${#disks[*]}]="$disk";
-                        (( $DEBUG )) && echo "DISK: $disk";
-                        break
-                    fi;
-                done;
-            done < /proc/partitions;
-            # Cache
-            echo "disks='${disks[@]}'" > $CACHE_DISKS;
-        fi;
-    fi;
-
-    (( $DEBUG )) && echo "disk_check found: ${disks[@]}";
-}
+# Load Carbon Lib
+if [ -e /usr/local/lib/carbon-lib.sh ]; then
+    . /usr/local/lib/carbon-lib.sh
+else
+    echo "unable to load /usr/local/lib/carbon-lib.sh";
+    exit 1;
+fi;
 
 #------------------------------------------------------------------------#
 # Pre Check Routines
@@ -210,6 +140,47 @@ while read line; do
     fi;
 done < /tmp/cache.monitors.df;
 rm -f /tmp/cache.monitors.df;
+#------------------------------------------------------------------------#
+# Network Statistics
+for nic in `route -n |grep -v Kernel|grep -v Gateway|awk '{print $8}'|sort -u`; do
+    (( $DEBUG )) && echo "Fetching interface statistics for $nic";
+    /sbin/ifconfig $nic |grep packets| while read line; do
+        set -- $line;
+        direction=`echo $1|tr '[A-Z]' '[a-z]'`;
+        tmp=($@); fields=(${tmp[@]:1});
+        for statistic in "${fields[@]}"; do
+            k=`echo $statistic|cut -d: -f 1`;
+            v=`echo $statistic|cut -d: -f 2`;
+            add_metric "nic.$nic.$direction.$k $v";
+        done;
+    done;
+    /sbin/ifconfig $nic |grep bytes| while read line; do
+        set -- $line;
+        rx_bytes=`echo $2 | cut -d: -f 2`;
+        tx_bytes=`echo $6 | cut -d: -f 2`;
+        add_metric "nic.$nic.rx.bytes $rx_bytes";
+        add_metric "nic.$nic.tx.bytes $tx_bytes";
+    done;
+    collisions=`/sbin/ifconfig $nic |grep collisions|awk '{print $1}'|cut -d: -f2`;
+    add_metric "nic.$nic.collisions $collisions";
+done;
+# Grab TCP Connection Data
+/bin/netstat -s --tcp |grep 'connections* opening' | while read line; do
+    set -- $line;
+    add_metric "tcp.connections.$2 $1";
+done;
+tcp_failed=`/bin/netstat -s --tcp |grep 'failed connection attempts'|awk '{print $1}'`;
+add_metric "tcp.connections.failed $tcp_failed";
+# Grab TCP Reset Data
+/bin/netstat -s --tcp |grep reset|grep -v due |awk '{print $1 " " $NF}' | while read line; do
+    set -- $line;
+    add_metric "tcp.resets.$2 $1";
+done;
+# Grab UDP Packet Data
+/bin/netstat -s --udp|grep packets|grep -v unknown | while read line; do
+    set -- $line;
+    add_metric "udp.packets.$3 $1";
+done;
 #------------------------------------------------------------------------#
 # SEND THE UPDATES TO CARBON
 send_to_carbon;
