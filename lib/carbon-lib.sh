@@ -2,10 +2,10 @@
 #
 # Setup Environment and Declare functions for Graphite
 # enabled shell scripting
-#
 # Override Defaults with /etc/sysconfig/carbon-endpoint
 #
-# To see debugging information, export DEBUG=1
+# To see debugging information, export CARBON_DEBUG=1
+# To see additional information, export CARBON_DEBUG=2
 #
 # To use, source this file, then add metrics:
 #
@@ -31,11 +31,24 @@ if [ -f "/etc/sysconfig/carbon-endpoint" ]; then
     . /etc/sysconfig/carbon-endpoint
 fi
 
+if [ -z $CARBON_SEND ]; then
+    CARBON_SEND="enabled"
+fi;
+
 # Caching
-CARBON_STASH="/tmp/carbon_stash.$$"
+CARBON_CACHE="/tmp/cache.carbon"
+declare -r CARBON_CACHE
+CARBON_STASH="$CARBON_CACHE/stash.$$"
 declare -r CARBON_STASH
-CACHE_DISKS="/tmp/cache.monitor.disks"
+
+if [ ! -d "$CARBON_CACHE" ]; then
+    mkdir $CARBON_CACHE;
+fi;
+
+#------------------------------------------------------------------------#
+# Cleanup
 [ -f "$CARBON_STASH" ] && rm -f $CARBON_STASH;
+find $CARBON_CACHE -type f -mtime +1 -exec rm {} \;
 
 #------------------------------------------------------------------------#
 # Constants
@@ -55,36 +68,37 @@ declare -a disks
 # Function Declarations
 function add_metric() {
     echo "${CARBON_BASE}.${HOST}.$1 $RUN_TIME" >> $CARBON_STASH;
-    (( $DEBUG )) && echo $1;
+    (( $CARBON_DEBUG )) && echo $1;
 }
 
 function send_to_carbon() {
-    nc $CARBON_HOST $CARBON_PORT < $CARBON_STASH;
-    [[ $DEBUG -gt 2 ]] && cat $CARBON_STASH;
+    if [ $CARBON_SEND != "disabled" ]; then
+        nc $CARBON_HOST $CARBON_PORT < $CARBON_STASH;
+        [[ $CARBON_DEBUG -gt 1 ]] && cat $CARBON_STASH;
+    fi;
     rm -f $CARBON_STASH;
 }
 
 function find_disks_to_check() {
+    CACHE_DISKS="$CARBON_CACHE/disks";
     if [ -f "$CACHE_DISKS" ]; then
         . $CACHE_DISKS;
     fi;
 
     if [ ${#disks} -gt 0 ]; then
-        (( $DEBUG )) && echo "disk_check: retrieved from cache";
+        (( $CARBON_DEBUG )) && echo "disk_check: retrieved from cache";
     else
         if [ -f /proc/partitions ]; then
             while read line
             do
                 disk=`echo $line |awk '{print $4}'`;
                 for prefix in "${disk_prefixes[@]}"; do
-                    if [ "X$disk" == "X" ]; then
-                        continue;
-                    fi;
-                    matched=`expr match $disk $prefix`;
-                    (( $DEBUG )) && echo " => check: expr match $disk $prefix : $matched";
-                    if [ $matched -gt 0 ]; then
+                    [ -z "$disk" ] && continue;
+
+                    (( $CARBON_DEBUG )) && echo " => check: '$disk' =~ '$prefix' : $matched";
+                    if [[ "$disk" =~ "$prefix" ]]; then
                         disks[${#disks[*]}]="$disk";
-                        (( $DEBUG )) && echo "DISK: $disk";
+                        (( $CARBON_DEBUG )) && echo "DISK: $disk";
                         break
                     fi;
                 done;
@@ -94,5 +108,5 @@ function find_disks_to_check() {
         fi;
     fi;
 
-    (( $DEBUG )) && echo "disk_check found: ${disks[@]}";
+    (( $CARBON_DEBUG )) && echo "disk_check found: ${disks[@]}";
 }

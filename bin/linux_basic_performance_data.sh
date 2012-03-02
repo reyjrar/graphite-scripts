@@ -15,22 +15,26 @@ else
     exit 1;
 fi;
 
+if [ -z $CARBON_NO_SPLAY ]; then
+    # Splay to spread out updates
+    SPLAY=$(( $RANDOM % 20 ));
+    (( $CARBON_DEBUG )) && echo -n "* Splay for this run is $SPLAY seconds, sleeping ..";
+    sleep $SPLAY;
+    (( $CARBON_DEBUG )) && echo " resuming";
+fi;
+
 #------------------------------------------------------------------------#
 # Pre Check Routines
 find_disks_to_check;
-# Remove Old Cache Files
-find /tmp -name cache.monitor.* -mtime +2 -exec {} \;
 
 #------------------------------------------------------------------------#
 # Load Average
 if [ -f /proc/loadavg ]; then
-    declare -a load
-    for i in `cut -d' ' -f 1-3 /proc/loadavg`; do
-        load[${#load[*]}]="$i";
-    done;
-    add_metric "load.1min ${load[0]}";
-    add_metric "load.5min ${load[1]}";
-    add_metric "load.15min ${load[2]}";
+    load=`cat /proc/loadavg`;
+    set -- $load;
+    add_metric "load.1min $1";
+    add_metric "load.5min $2";
+    add_metric "load.15min $3";
 else
     : # Code to rely on uptime
 fi;
@@ -101,23 +105,25 @@ if [ ${#disks} -gt 0 ]; then
         while read line; do
             set -- $line;
             if [[ "${disks[@]}" =~ "$3" ]]; then
-                add_metric "disks.$3.read.issued $4";
-                add_metric "disks.$3.read.merged $5";
-                add_metric "disks.$3.read.sectors $6";
-                add_metric "disks.$3.read.ms $7";
-                add_metric "disks.$3.write.complete $8";
-                add_metric "disks.$3.write.merged $9";
-                add_metric "disks.$3.write.sectors ${10}";
-                add_metric "disks.$3.write.ms ${11}";
-                add_metric "disks.$3.io.current ${12}";
-                add_metric "disks.$3.io.ms ${13}";
-                add_metric "disks.$3.io.weighted_ms ${14}";
+                disk=$3
+                disk=${disk/\//_};
+                add_metric "disks.$disk.read.issued $4";
+                add_metric "disks.$disk.read.merged $5";
+                add_metric "disks.$disk.read.sectors $6";
+                add_metric "disks.$disk.read.ms $7";
+                add_metric "disks.$disk.write.complete $8";
+                add_metric "disks.$disk.write.merged $9";
+                add_metric "disks.$disk.write.sectors ${10}";
+                add_metric "disks.$disk.write.ms ${11}";
+                add_metric "disks.$disk.io.current ${12}";
+                add_metric "disks.$disk.io.ms ${13}";
+                add_metric "disks.$disk.io.weighted_ms ${14}";
             fi;
         done < /proc/diskstats;
     fi;
 fi;
 # File System Data
-df -l -x tmpfs > /tmp/cache.monitors.df;
+df -Pl -x tmpfs > /tmp/cache.monitors.df;
 while read line; do
     set -- $line;
 
@@ -143,7 +149,7 @@ rm -f /tmp/cache.monitors.df;
 #------------------------------------------------------------------------#
 # Network Statistics
 for nic in `/sbin/route -n |grep -v Kernel|grep -v Gateway|awk '{print $8}'|sort -u`; do
-    (( $DEBUG )) && echo "Fetching interface statistics for $nic";
+    (( $CARBON_DEBUG )) && echo "Fetching interface statistics for $nic";
     /sbin/ifconfig $nic |grep packets| while read line; do
         set -- $line;
         direction=`echo $1|tr '[A-Z]' '[a-z]'`;
