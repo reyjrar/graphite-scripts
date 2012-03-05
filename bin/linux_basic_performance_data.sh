@@ -123,8 +123,7 @@ if [ ${#disks} -gt 0 ]; then
     fi;
 fi;
 # File System Data
-df -Pl -x tmpfs > /tmp/cache.monitors.df;
-while read line; do
+df -Pl -x tmpfs | while read line; do
     set -- $line;
 
     dev=$1;
@@ -144,8 +143,7 @@ while read line; do
         add_metric "fs.$path.used $used";
         add_metric "fs.$path.available $available";
     fi;
-done < /tmp/cache.monitors.df;
-rm -f /tmp/cache.monitors.df;
+done;
 #------------------------------------------------------------------------#
 # Network Statistics
 for nic in `/sbin/route -n |grep -v Kernel|grep -v Gateway|awk '{print $8}'|sort -u`; do
