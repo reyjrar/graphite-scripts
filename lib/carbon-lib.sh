@@ -48,7 +48,10 @@ fi;
 #------------------------------------------------------------------------#
 # Cleanup
 [ -f "$CARBON_STASH" ] && rm -f $CARBON_STASH;
-find $CARBON_CACHE -type f -mtime +1 -exec rm {} \;
+if [ -O "$CARBON_CACHE" ]; then
+    chmod 0777 "$CARBON_CACHE";
+    find $CARBON_CACHE -type f -mtime +1 -exec rm {} \; 2> /dev/null
+fi;
 
 #------------------------------------------------------------------------#
 # Constants
