@@ -42,7 +42,7 @@ CARBON_STASH="$CARBON_CACHE/stash.$$"
 declare -r CARBON_STASH
 
 if [ ! -d "$CARBON_CACHE" ]; then
-    mkdir $CARBON_CACHE;
+    mkdir "$CARBON_CACHE";
 fi;
 
 #------------------------------------------------------------------------#
@@ -50,7 +50,7 @@ fi;
 [ -f "$CARBON_STASH" ] && rm -f $CARBON_STASH;
 if [ -O "$CARBON_CACHE" ]; then
     chmod 0777 "$CARBON_CACHE";
-    find $CARBON_CACHE -type f -mtime +1 -exec rm {} \; 2> /dev/null
+    find "$CARBON_CACHE" -type f -mtime +1 -exec rm -f {} \; 2> /dev/null
 fi;
 
 #------------------------------------------------------------------------#
@@ -59,57 +59,17 @@ HOST=`hostname -s`
 declare -r HOST
 RUN_TIME=`date +%s`
 declare -r RUN_TIME
-# Hard Disk Monitoring
-disk_prefixes=( 'sd' 'hd' 'c0d' 'c1d' )
-declare -r disks_prefixes
-
-#------------------------------------------------------------------------#
-# Globals
-declare -a disks
-
 #------------------------------------------------------------------------#
 # Function Declarations
 function add_metric() {
-    echo "${CARBON_BASE}.${HOST}.$1 $RUN_TIME" >> $CARBON_STASH;
+    echo "${CARBON_BASE}.${HOST}.$1 $RUN_TIME" >> "$CARBON_STASH";
     (( $CARBON_DEBUG )) && echo $1;
 }
 
 function send_to_carbon() {
     if [ $CARBON_SEND != "disabled" ]; then
-        nc $CARBON_HOST $CARBON_PORT < $CARBON_STASH;
-        [[ $CARBON_DEBUG -gt 1 ]] && cat $CARBON_STASH;
+        nc $CARBON_HOST $CARBON_PORT < "$CARBON_STASH";
+        [[ $CARBON_DEBUG -gt 1 ]] && cat "$CARBON_STASH";
     fi;
-    rm -f $CARBON_STASH;
-}
-
-function find_disks_to_check() {
-    CACHE_DISKS="$CARBON_CACHE/disks";
-    if [ -f "$CACHE_DISKS" ]; then
-        . $CACHE_DISKS;
-    fi;
-
-    if [ ${#disks} -gt 0 ]; then
-        (( $CARBON_DEBUG )) && echo "disk_check: retrieved from cache";
-    else
-        if [ -f /proc/partitions ]; then
-            while read line
-            do
-                disk=`echo $line |awk '{print $4}'`;
-                for prefix in "${disk_prefixes[@]}"; do
-                    [ -z "$disk" ] && continue;
-
-                    (( $CARBON_DEBUG )) && echo " => check: '$disk' =~ '$prefix' : $matched";
-                    if [[ "$disk" =~ "$prefix" ]]; then
-                        disks[${#disks[*]}]="$disk";
-                        (( $CARBON_DEBUG )) && echo "DISK: $disk";
-                        break
-                    fi;
-                done;
-            done < /proc/partitions;
-            # Cache
-            echo "disks='${disks[@]}'" > $CACHE_DISKS;
-        fi;
-    fi;
-
-    (( $CARBON_DEBUG )) && echo "disk_check found: ${disks[@]}";
+    rm -f "$CARBON_STASH";
 }

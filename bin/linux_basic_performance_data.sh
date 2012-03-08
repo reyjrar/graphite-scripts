@@ -24,8 +24,38 @@ if [ -z $CARBON_NO_SPLAY ]; then
 fi;
 
 #------------------------------------------------------------------------#
-# Pre Check Routines
-find_disks_to_check;
+# Determine the Disks to Monitor
+disk_prefixes=( 'sd' 'hd' 'c0d' 'c1d' )
+declare -r disks_prefixes
+declare -a disks
+CACHE_DISKS="$CARBON_CACHE/disks";
+if [ -f "$CACHE_DISKS" ]; then
+    . $CACHE_DISKS;
+fi;
+
+if [ ${#disks} -gt 0 ]; then
+    (( $CARBON_DEBUG )) && echo "disk_check: retrieved from cache";
+else
+    if [ -f /proc/partitions ]; then
+        while read line
+        do
+            disk=`echo $line |awk '{print $4}'`;
+            for prefix in "${disk_prefixes[@]}"; do
+                [ -z "$disk" ] && continue;
+
+                (( $CARBON_DEBUG )) && echo " => check: '$disk' =~ '$prefix' : $matched";
+                if [[ "$disk" =~ "$prefix" ]]; then
+                    disks[${#disks[*]}]="$disk";
+                    (( $CARBON_DEBUG )) && echo "DISK: $disk";
+                    break
+                fi;
+            done;
+        done < /proc/partitions;
+        # Cache
+        echo "disks='${disks[@]}'" > "$CACHE_DISKS";
+    fi;
+fi;
+(( $CARBON_DEBUG )) && echo "disk_check found: ${disks[@]}";
 
 #------------------------------------------------------------------------#
 # Load Average

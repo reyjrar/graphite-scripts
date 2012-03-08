@@ -6,25 +6,26 @@
 #
 
 #------------------------------------------------------------------------#
+# Arguement Processing
+args=("$@");
+command=$1;
+unset args[0];
+timings_file="/tmp/timinigs.$$";
+
+
+#------------------------------------------------------------------------#
 # Load Caron Library
 if [ -e /usr/local/lib/carbon-lib.sh ]; then
     . /usr/local/lib/carbon-lib.sh
 else
-    echo "unable to load /usr/local/lib/carbon-lib.sh";
-    exit 1;
+    (( $CARBON_DEBUG )) && echo "failed to load carbon-lib.sh, running command";
+    "${args[@]}"
+    exit $?
 fi;
 
 #------------------------------------------------------------------------#
-# Arguement Processing
-args=($@);
-command=$1;
-unset args[0];
-
-timings_file="/tmp/timinigs.$$";
-
-#------------------------------------------------------------------------#
 # Execute the Command, capturing the RC
-(( $DEBUG )) && echo "($command) ${args[@]} to $timings_file";
+(( $CARBON_DEBUG )) && echo "($command) ${args[@]} to $timings_file";
 /usr/bin/time -o $timings_file -f "user:%U\nsys:%S\nreal:%e\ncpu:%P" ${args[@]};
 RC=$?;
 
