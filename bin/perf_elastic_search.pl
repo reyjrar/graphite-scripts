@@ -18,9 +18,11 @@ use Pod::Usage;
 my %opt;
 GetOptions(\%opt,
     'format:s',
+    'carbon-proto:s',
     'carbon-server:s',
     'carbon-port:i',
-    'host=s',
+    'host:s',
+    'local',
     'help|h',
     'manual|m',
     'verbose|v',
@@ -31,6 +33,10 @@ GetOptions(\%opt,
 # Documentations!
 pod2usage(1) if $opt{help};
 pod2usage(-exitstatus => 0, -verbose => 2) if $opt{manual};
+
+#------------------------------------------------------------------------#
+# Host or Local
+pod2usage(1) if !$opt{local} and !$opt{host};
 
 #------------------------------------------------------------------------#
 # Argument Sanitazation
@@ -55,15 +61,18 @@ if( exists $opt{format} and length $opt{format} ) {
 # Merge options into config
 my %cfg = (
     format => 'graphite',
+    'carbon-proto' => 'tcp',
     %opt,
 );
 
 #------------------------------------------------------------------------#
 # Format Routines
 my $time = time;
+my $HOSTNAME = undef;
 my %_formatter = (
     cacti       => sub {
             local $_ = shift;
+            my $name = shift;
             s/\./_/g;
             s/\s/:/;
             s/$/\n/;
@@ -71,7 +80,7 @@ my %_formatter = (
     },
     graphite    => sub {
             local $_ = shift;
-            s/^/es.$cfg{host}./;
+            s/^/es.$HOSTNAME./;
             s/$/ $time\n/;
             $_;
     },
@@ -81,17 +90,22 @@ my %_formatter = (
 # Carbon Socket Creation
 my $carbon_socket;
 if( exists $cfg{'carbon-server'} and length $cfg{'carbon-server'} ) {
+    my %valid_protos = ( tcp => 1, udp => 1 );
+    die "invalid protocol specified: $cfg{'carbon-proto'}\n" unless exists $valid_protos{$cfg{'carbon-proto'}};
     $carbon_socket = IO::Socket::INET->new(
         PeerAddr    => $cfg{'carbon-server'},
         PeerPort    => $cfg{'carbon-port'} || 2003,
-        Proto       => 'tcp',
+        Proto       => $cfg{'carbon-proto'},
     );
     die "unable to connect to carbon server: $!" unless defined $carbon_socket && $carbon_socket->connected;
 }
 
 #------------------------------------------------------------------------#
 # Collect and Decode the Cluster Statistics
-my $json = get("http://search-02:9200/_cluster/nodes/stats");
+my $url = exists $opt{local} && $opt{local} 
+        ? "http://localhost:9200/_cluster/nodes/_local/stats"
+        : "http://$opt{host}:9200/_cluster/nodes/stats";
+my $json = get($url);
 my $data = JSON->new->decode( $json );
 my $node_data = parse_stats( $data );
 
@@ -117,8 +131,9 @@ sub parse_stats {
     my $node_id;
     my @nodes;
     foreach my $id (keys %{ $data->{nodes} }) {
-        if( $data->{nodes}{$id}{name} eq $cfg{host} ) {
+        if( (exists $opt{local} and $opt{local} ) || $data->{nodes}{$id}{name} eq $cfg{host}  ) {
             $node_id = $id;
+            $HOSTNAME=$data->{nodes}{$id}{name};
             last;
         }
         else {
@@ -129,6 +144,45 @@ sub parse_stats {
     my $node = $data->{nodes}{$node_id};
 
     my @stats = ();
+    # Index Details
+    push @stats,
+        # Basic Stats
+        "indices.size $node->{indices}{store}{size_in_bytes}",
+        "indices.docs $node->{indices}{docs}{count}",
+        # Indexing
+        "indices.indexing.total $node->{indices}{indexing}{index_total}",
+        "indices.indexing.total_ms $node->{indices}{indexing}{index_time_in_millis}",
+        "indices.indexing.delete $node->{indices}{indexing}{delete_total}",
+        "indices.indexing.delete_ms $node->{indices}{indexing}{delete_time_in_millis}",
+         # Get Data
+        "indices.get.total $node->{indices}{get}{total}",
+        "indices.get.total_ms $node->{indices}{get}{time_in_millis}",
+        "indices.get.exists $node->{indices}{get}{exists_total}",
+        "indices.get.exists_ms $node->{indices}{get}{exists_time_in_millis}",
+        "indices.get.missing $node->{indices}{get}{missing_total}",
+        "indices.get.missing_ms $node->{indices}{get}{missing_time_in_millis}",
+        # Search Data
+        "indices.search.query $node->{indices}{search}{query_total}",
+        "indices.search.query_ms $node->{indices}{search}{query_time_in_millis}",
+        "indices.search.fetch $node->{indices}{search}{fetch_total}",
+        "indices.search.fetch_ms $node->{indices}{search}{fetch_time_in_millis}",
+        # Search Data
+        "indices.cache.field_evictions $node->{indices}{cache}{field_evictions}",
+        "indices.cache.field_size $node->{indices}{cache}{field_size_in_bytes}",
+        "indices.cache.filter_evictions $node->{indices}{cache}{filter_evictions}",
+        "indices.cache.filter_size $node->{indices}{cache}{filter_size_in_bytes}",
+        # Merges
+        "indices.merges.total_docs $node->{indices}{merges}{total_docs}",
+        "indices.merges.total_size $node->{indices}{merges}{total_size_in_bytes}",
+        "indices.merges.total_ms $node->{indices}{merges}{total_time_in_millis}",
+        # Refresh
+        "indices.refresh.total $node->{indices}{refresh}{total}",
+        "indices.refresh.total_ms $node->{indices}{refresh}{total_time_in_millis}",
+        # Flush
+        "indices.flush.total $node->{indices}{flush}{total}",
+        "indices.flush.total_ms $node->{indices}{flush}{total_time_in_millis}",
+        ;
+
     # Transport Details
     push @stats,
         "transport.rx_bytes $node->{transport}{rx_size_in_bytes}",
@@ -203,10 +257,12 @@ Options:
 
     --help              print help
     --manual            print full manual
+    --local             Poll localhost and use name reported by ES
     --host|-H           Host to poll for statistics
     --format            stats Format (graphite or cacti) (Default: graphite)
     --carbon-server     Send Graphite stats to Carbon Server (Automatically sets format=graphite)
     --carbon-port       Port for to use for Carbon (Default: 2003)
+    --carbon-proto      Protocol for to use for Carbon (Default: tcp)
     --verbose           Send additional messages to STDERR
 
 =head1 OPTIONS
@@ -221,9 +277,13 @@ Print this message and exit
 
 Print this message and exit
 
+=item B<local>
+
+Optional, check local host (if not specified, --host required)
+
 =item B<host>
 
-Required, the host to check
+Optional, the host to check (if not specified --local required)
 
 =item B<format>
 
@@ -254,6 +314,6 @@ format for your monitoring infrastructure.
 
 =head1 AUTHOR
 
-Brad Lhotsky <brad.lhotsky@gmail.com>
+Brad Lhotsky <brad.lhotsky@booking.com>
 
 =cut
