@@ -17,22 +17,28 @@ fi;
 
 if [ -z $CARBON_NO_SPLAY ]; then
     # Splay to spread out updates
-    SPLAY=$(( $RANDOM % 20 ));
+    SPLAY=$(( $RANDOM % 10 ));
     (( $CARBON_DEBUG )) && echo -n "* Splay for this run is $SPLAY seconds, sleeping ..";
     sleep $SPLAY;
     (( $CARBON_DEBUG )) && echo " resuming";
 fi;
 
 #------------------------------------------------------------------------#
-# Determine the Disks to Monitor
+# Pre Check Routines
+# Hard Disk Monitoring
 disk_prefixes=( 'sd' 'hd' 'c0d' 'c1d' )
 declare -r disks_prefixes
+
+#------------------------------------------------------------------------#
+# Globals
 declare -a disks
 CACHE_DISKS="$CARBON_CACHE/disks";
 if [ -f "$CACHE_DISKS" ]; then
     . $CACHE_DISKS;
 fi;
 
+#------------------------------------------------------------------------#
+# Disk Discovery
 if [ ${#disks} -gt 0 ]; then
     (( $CARBON_DEBUG )) && echo "disk_check: retrieved from cache";
 else
@@ -75,7 +81,7 @@ if [ -f /proc/stat ]; then
         set -- $line;
         var=$1;
 
-        if [[ "$var" =~ "^cpu" ]]; then
+        if [[ "$var" =~ "cpu" ]]; then
             add_metric "stat.${var}.user $2";
             add_metric "stat.${var}.nice $3";
             add_metric "stat.${var}.system $4";
@@ -105,29 +111,17 @@ if [ $rc -eq 0 ]; then
     add_metric "iostat.idle $6";
 fi;
 #------------------------------------------------------------------------#
-# Memory Information
-if [ -f /proc/meminfo ]; then
-    while read line
-    do
-        field=`echo $line |cut -d: -f 1`;
-        value=`echo $line |cut -d' ' -f 2`;
-        value=$(( value * 1024 ));
-        add_metric "meminfo.$field $value";
-    done < /proc/meminfo;
-fi;
-# Virtual Memory
-if [ -f /proc/vmstat ]; then
-    while read line
-    do
-        field=`echo $line |cut -d' ' -f 1`;
-        value=`echo $line |cut -d' ' -f 2`;
-        add_metric "vmstat.$field $value";
-    done < /proc/vmstat;
-else
-    : # Code to rely on vmstat binary
-# Memory Information
-fi;
-
+# Use Free -mo to get memory details
+/usr/bin/free -mob | tail -2 | while read line; do
+    set -- $line;
+    k=`echo $1 | tr [A-Z] [a-z] | sed -e s/://`;
+    add_metric "memory.$k.total $2";
+    add_metric "memory.$k.used $3";
+    add_metric "memory.$k.free $4";
+    [ ! -z $5 ] && add_metric "memory.$k.shared $5";
+    [ ! -z $6 ] && add_metric "memory.$k.buffers $6";
+    [ ! -z $7 ] && add_metric "memory.$k.cached $7";
+done;
 #------------------------------------------------------------------------#
 # Disk Performance Information
 if [ ${#disks} -gt 0 ]; then

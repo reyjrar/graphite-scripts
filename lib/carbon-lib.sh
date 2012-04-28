@@ -2,6 +2,7 @@
 #
 # Setup Environment and Declare functions for Graphite
 # enabled shell scripting
+#
 # Override Defaults with /etc/sysconfig/carbon-endpoint
 #
 # To see debugging information, export CARBON_DEBUG=1
@@ -38,20 +39,20 @@ fi;
 # Caching
 CARBON_CACHE="/tmp/cache.carbon"
 declare -r CARBON_CACHE
-CARBON_STASH="$CARBON_CACHE/stash.$$"
+CARBON_STASH="$CARBON_CACHE/stash.$$.$EUID"
 declare -r CARBON_STASH
 
 if [ ! -d "$CARBON_CACHE" ]; then
     mkdir "$CARBON_CACHE";
+    chmod 0777 "$CARBON_CACHE";
 fi;
 
 #------------------------------------------------------------------------#
 # Cleanup
-[ -f "$CARBON_STASH" ] && rm -f $CARBON_STASH;
-if [ -O "$CARBON_CACHE" ]; then
-    chmod 0777 "$CARBON_CACHE";
-    find "$CARBON_CACHE" -type f -mtime +1 -exec rm -f {} \; 2> /dev/null
+if [ -f "$CARBON_STASH" ] && [ -O "$CARBON_STASH" ]; then
+    rm -f "$CARBON_STASH" 2> /dev/null;
 fi;
+find "$CARBON_CACHE" -type f -user $(whoami) -mtime +1 -exec rm -f {} \; 2> /dev/null
 
 #------------------------------------------------------------------------#
 # Constants
@@ -59,6 +60,8 @@ HOST=`hostname -s`
 declare -r HOST
 RUN_TIME=`date +%s`
 declare -r RUN_TIME
+[[ $CARBON_DEBUG -gt 1 ]] && echo "Env: HOST=$HOST, CARBON_STASH=$CARBON_STASH";
+
 #------------------------------------------------------------------------#
 # Function Declarations
 function add_metric() {
@@ -67,8 +70,8 @@ function add_metric() {
 }
 
 function send_to_carbon() {
-    if [ $CARBON_SEND != "disabled" ]; then
-        nc $CARBON_HOST $CARBON_PORT < "$CARBON_STASH";
+    if [ "$CARBON_SEND" != "disabled" ]; then
+        nc "$CARBON_HOST" "$CARBON_PORT" < "$CARBON_STASH";
         [[ $CARBON_DEBUG -gt 1 ]] && cat "$CARBON_STASH";
     fi;
     rm -f "$CARBON_STASH";

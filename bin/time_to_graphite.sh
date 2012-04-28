@@ -12,21 +12,19 @@ command=$1;
 unset args[0];
 timings_file="/tmp/timinigs.$$";
 
-
 #------------------------------------------------------------------------#
 # Load Caron Library
 if [ -e /usr/local/lib/carbon-lib.sh ]; then
     . /usr/local/lib/carbon-lib.sh
 else
-    (( $CARBON_DEBUG )) && echo "failed to load carbon-lib.sh, running command";
-    "${args[@]}"
-    exit $?
+    ${args[@]};
+    exit $?;
 fi;
 
 #------------------------------------------------------------------------#
 # Execute the Command, capturing the RC
-(( $CARBON_DEBUG )) && echo "($command) ${args[@]} to $timings_file";
-/usr/bin/time -o $timings_file -f "user:%U\nsys:%S\nreal:%e\ncpu:%P" ${args[@]};
+(( $DEBUG )) && echo "($command) ${args[@]} to $timings_file";
+/usr/bin/time -o $timings_file -f "user:%U\nsys:%S\nreal:%e\ncpu:%P" "${args[@]}";
 RC=$?;
 
 #------------------------------------------------------------------------#

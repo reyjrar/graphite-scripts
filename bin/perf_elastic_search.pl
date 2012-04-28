@@ -314,6 +314,6 @@ format for your monitoring infrastructure.
 
 =head1 AUTHOR
 
-Brad Lhotsky <brad.lhotsky@booking.com>
+Brad Lhotsky <brad.lhotsky@gmail.com>
 
 =cut
