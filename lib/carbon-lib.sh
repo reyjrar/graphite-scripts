@@ -60,7 +60,7 @@ HOST=`hostname -s`
 declare -r HOST
 RUN_TIME=`date +%s`
 declare -r RUN_TIME
-[[ $CARBON_DEBUG -gt 1 ]] && echo "Env: HOST=$HOST, CARBON_STASH=$CARBON_STASH";
+[[ $CARBON_DEBUG -gt 1 ]] && echo "Env: HOST=$HOST, CARBON_STASH=$CARBON_STASH, CARBON_HOST=$CARBON_HOST";
 
 #------------------------------------------------------------------------#
 # Function Declarations

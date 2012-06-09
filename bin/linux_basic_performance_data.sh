@@ -8,10 +8,11 @@
 #
 #------------------------------------------------------------------------#
 # Load Carbon Lib
-if [ -e /usr/local/lib/carbon-lib.sh ]; then
-    . /usr/local/lib/carbon-lib.sh
+CARBON_LIB="/opt/graphite-scripts/lib/carbon-lib.sh"
+if [ -e $CARBON_LIB ]; then
+    . $CARBON_LIB
 else
-    echo "unable to load /usr/local/lib/carbon-lib.sh";
+    echo "unable to load $CARBON_LIB";
     exit 1;
 fi;
 
@@ -26,7 +27,7 @@ fi;
 #------------------------------------------------------------------------#
 # Pre Check Routines
 # Hard Disk Monitoring
-disk_prefixes=( 'sd' 'hd' 'c0d' 'c1d' )
+disk_prefixes=( 'sd' 'hd' 'c0d' 'c1d' 'xvd' )
 declare -r disks_prefixes
 
 #------------------------------------------------------------------------#
@@ -131,6 +132,7 @@ if [ ${#disks} -gt 0 ]; then
             if [[ "${disks[@]}" =~ "$3" ]]; then
                 disk=$3
                 disk=${disk/\//_};
+                #(( $CARBON_DEBUG )) && echo "gathering disk stats for $disk"
                 add_metric "disks.$disk.read.issued $4";
                 add_metric "disks.$disk.read.merged $5";
                 add_metric "disks.$disk.read.sectors $6";
