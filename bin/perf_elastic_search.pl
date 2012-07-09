@@ -102,9 +102,11 @@ if( exists $cfg{'carbon-server'} and length $cfg{'carbon-server'} ) {
 
 #------------------------------------------------------------------------#
 # Collect and Decode the Cluster Statistics
-my $url = exists $opt{local} && $opt{local} 
-        ? "http://localhost:9200/_cluster/nodes/_local/stats"
-        : "http://$opt{host}:9200/_cluster/nodes/stats";
+my @stats = qw(http os jvm process transport);
+my $qs = join('&', map { "$_=true" } @stats );
+my $url = exists $opt{local} && $opt{local}
+        ? "http://localhost:9200/_cluster/nodes/_local/stats?$qs"
+        : "http://$opt{host}:9200/_cluster/nodes/stats?$qs";
 my $json = get($url);
 my $data = JSON->new->decode( $json );
 my $node_data = parse_stats( $data );
