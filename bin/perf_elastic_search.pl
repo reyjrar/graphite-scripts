@@ -18,6 +18,7 @@ use Pod::Usage;
 my %opt;
 GetOptions(\%opt,
     'format:s',
+    'carbon-base:s',
     'carbon-proto:s',
     'carbon-server:s',
     'carbon-port:i',
@@ -62,6 +63,7 @@ if( exists $opt{format} and length $opt{format} ) {
 my %cfg = (
     format => 'graphite',
     'carbon-proto' => 'tcp',
+    'carbon-base'  => 'general.es',
     %opt,
 );
 
@@ -80,7 +82,7 @@ my %_formatter = (
     },
     graphite    => sub {
             local $_ = shift;
-            s/^/es.$HOSTNAME./;
+            s/^/$cfg{'carbon-base'}.$HOSTNAME./;
             s/$/ $time\n/;
             $_;
     },
@@ -262,6 +264,7 @@ Options:
     --local             Poll localhost and use name reported by ES
     --host|-H           Host to poll for statistics
     --format            stats Format (graphite or cacti) (Default: graphite)
+    --carbon-base       The prefix to use for carbon metrics (Default: general.es)
     --carbon-server     Send Graphite stats to Carbon Server (Automatically sets format=graphite)
     --carbon-port       Port for to use for Carbon (Default: 2003)
     --carbon-proto      Protocol for to use for Carbon (Default: tcp)
@@ -293,6 +296,11 @@ stats format:
 
     graphite        Use format for graphite/carbon (default)
     cacti           For use with Cacti
+
+=item B<carbon-base>
+
+The prefix to use for metrics sent to carbon.  The default is "general.es".  Please note, the host name
+of the ElasticSearch node will be appended, followed by the metric name.
 
 =item B<carbon-server>
 
