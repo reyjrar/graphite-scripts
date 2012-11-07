@@ -8,11 +8,10 @@
 #
 #------------------------------------------------------------------------#
 # Load Carbon Lib
-CARBON_LIB="/opt/graphite-scripts/lib/carbon-lib.sh"
-if [ -e $CARBON_LIB ]; then
-    . $CARBON_LIB
+if [ -e /usr/local/lib/carbon-lib.sh ]; then
+    . /usr/local/lib/carbon-lib.sh
 else
-    echo "unable to load $CARBON_LIB";
+    echo "unable to load /usr/local/lib/carbon-lib.sh";
     exit 1;
 fi;
 
@@ -27,7 +26,7 @@ fi;
 #------------------------------------------------------------------------#
 # Pre Check Routines
 # Hard Disk Monitoring
-disk_prefixes=( 'sd' 'hd' 'c0d' 'c1d' 'xvd' )
+disk_prefixes=( 'sd' 'hd' 'c0d' 'c1d' )
 declare -r disks_prefixes
 
 #------------------------------------------------------------------------#
@@ -77,27 +76,21 @@ else
 fi;
 #------------------------------------------------------------------------#
 # CPU Stats
-if [ -f /proc/stat ]; then
-    while read line; do
+if [ -x /usr/bin/mpstat ]; then
+    /usr/bin/mpstat -P ALL |grep '^[0-9]' | grep -v CPU | while read line; do
         set -- $line;
-        var=$1;
+        cpu=$3;
 
-        if [[ "$var" =~ "cpu" ]]; then
-            add_metric "stat.${var}.user $2";
-            add_metric "stat.${var}.nice $3";
-            add_metric "stat.${var}.system $4";
-            add_metric "stat.${var}.idle $5";
-            add_metric "stat.${var}.iowait $6";
-            add_metric "stat.${var}.irq $7";
-            add_metric "stat.${var}.softirq $8";
-        elif [ "$var" == "procs_running" ]; then
-            add_metric "stat.$var $2";
-        elif [ "$var" == "procs_blocked" ]; then
-            add_metric "stat.$var $2";
-        elif [ "$var" == "ctxt" ]; then
-            add_metric "stat.context_switches $2";
-        fi;
-    done < /proc/stat;
+        add_metric "cpu.${cpu}.user $4";
+        add_metric "cpu.${cpu}.nice $5";
+        add_metric "cpu.${cpu}.system $6";
+        add_metric "cpu.${cpu}.iowait $7";
+        add_metric "cpu.${cpu}.irq $8";
+        add_metric "cpu.${cpu}.soft $9";
+        add_metric "cpu.${cpu}.steal ${10}";
+        add_metric "cpu.${cpu}.idle ${11}";
+        add_metric "cpu.${cpu}.instr ${12}";
+    done;
 fi;
 # IO Stats
 iostat_line=`iostat |awk 'FNR==4'`;
@@ -132,7 +125,6 @@ if [ ${#disks} -gt 0 ]; then
             if [[ "${disks[@]}" =~ "$3" ]]; then
                 disk=$3
                 disk=${disk/\//_};
-                #(( $CARBON_DEBUG )) && echo "gathering disk stats for $disk"
                 add_metric "disks.$disk.read.issued $4";
                 add_metric "disks.$disk.read.merged $5";
                 add_metric "disks.$disk.read.sectors $6";
