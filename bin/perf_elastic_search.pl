@@ -82,7 +82,11 @@ my %_formatter = (
     },
     graphite    => sub {
             local $_ = shift;
-            s/^/$cfg{'carbon-base'}.$HOSTNAME./;
+            my $hostname = $HOSTNAME;
+            if (exists $opt{underscores} && $opt{underscores}) {
+              $hostname =~ s/\./_/g;
+            }
+            s/^/$cfg{'carbon-base'}.$hostname./;
             s/$/ $time\n/;
             $_;
     },
