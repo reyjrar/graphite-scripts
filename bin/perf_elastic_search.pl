@@ -274,6 +274,7 @@ Options:
     --carbon-port       Port for to use for Carbon (Default: 2003)
     --carbon-proto      Protocol for to use for Carbon (Default: tcp)
     --verbose           Send additional messages to STDERR
+    --underscores       Send hostname as host_name to graphite instead of those pesky dots
 
 =head1 OPTIONS
 
