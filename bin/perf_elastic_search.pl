@@ -176,10 +176,10 @@ sub parse_stats {
         "indices.search.fetch $node->{indices}{search}{fetch_total}",
         "indices.search.fetch_ms $node->{indices}{search}{fetch_time_in_millis}",
         # Search Data
-        "indices.cache.field_evictions $node->{indices}{cache}{field_evictions}",
-        "indices.cache.field_size $node->{indices}{cache}{field_size_in_bytes}",
-        "indices.cache.filter_evictions $node->{indices}{cache}{filter_evictions}",
-        "indices.cache.filter_size $node->{indices}{cache}{filter_size_in_bytes}",
+        "indices.cache.field_evictions $node->{indices}{fielddata}{evictions}",
+        "indices.cache.field_size $node->{indices}{fielddata}{memory_size_in_bytes}",
+        "indices.cache.filter_evictions $node->{indices}{filter_cache}{evictions}",
+        "indices.cache.filter_size $node->{indices}{filter_cache}{memory_size_in_bytes}",
         # Merges
         "indices.merges.total_docs $node->{indices}{merges}{total_docs}",
         "indices.merges.total_size $node->{indices}{merges}{total_size_in_bytes}",
