@@ -109,7 +109,7 @@ if( exists $cfg{'carbon-server'} and length $cfg{'carbon-server'} ) {
 
 #------------------------------------------------------------------------#
 # Collect and Decode the Cluster Statistics
-my @stats = qw(http os jvm process transport indices);
+my @stats = qw(http os jvm process transport indices merges);
 my $qs = join('&', map { "$_=true" } @stats );
 my $url = exists $opt{local} && $opt{local}
         ? "http://localhost:9200/_cluster/nodes/_local/stats?$qs"
@@ -158,6 +158,8 @@ sub parse_stats {
         # Basic Stats
         "indices.size $node->{indices}{store}{size_in_bytes}",
         "indices.docs $node->{indices}{docs}{count}",
+        # Throttling
+        "indices.throttle.total_ms $node->{indices}{store}{throttle_time_in_millis}",
         # Indexing
         "indices.indexing.total $node->{indices}{indexing}{index_total}",
         "indices.indexing.total_ms $node->{indices}{indexing}{index_time_in_millis}",
@@ -181,6 +183,7 @@ sub parse_stats {
         "indices.cache.filter_evictions $node->{indices}{filter_cache}{evictions}",
         "indices.cache.filter_size $node->{indices}{filter_cache}{memory_size_in_bytes}",
         # Merges
+        "indices.merges.total $node->{indices}{merges}{total}",
         "indices.merges.total_docs $node->{indices}{merges}{total_docs}",
         "indices.merges.total_size $node->{indices}{merges}{total_size_in_bytes}",
         "indices.merges.total_ms $node->{indices}{merges}{total_time_in_millis}",
