@@ -24,6 +24,7 @@ GetOptions(\%opt,
     'carbon-port:i',
     'host:s',
     'local',
+    'port:s',
     'underscores',
     'help|h',
     'manual|m',
@@ -61,6 +62,10 @@ if( exists $opt{format} and length $opt{format} ) {
         delete $opt{format};
     }
 }
+# Set default port if not specified
+if( ! exists $opt{port} ) {
+    $opt{port} = '9200';
+};
 # Merge options into config
 my %cfg = (
     format => 'graphite',
@@ -113,8 +118,8 @@ if( exists $cfg{'carbon-server'} and length $cfg{'carbon-server'} ) {
 my @stats = qw(http os jvm process transport indices merges);
 my $qs = join('&', map { "$_=true" } @stats );
 my $nodes_url = exists $opt{local} && $opt{local}
-        ? "http://localhost:9200/_cluster/nodes/_local/stats?$qs"
-        : "http://$opt{host}:9200/_cluster/nodes/stats?$qs";
+        ? "http://localhost:$opt{port}/_cluster/nodes/_local/stats?$qs"
+        : "http://$opt{host}:$opt{port}/_cluster/nodes/stats?$qs";
 my $nodes_json = get($nodes_url);
 my $nodes_raw_data = JSON->new->decode( $nodes_json );
 my $nodes_data = parse_stats( $nodes_raw_data );
@@ -123,8 +128,8 @@ my $nodes_data = parse_stats( $nodes_raw_data );
 my @index_data = ();
 if( exists $cfg{'with-indices'} ) {
     my $index_url = exists $opt{local} && $opt{local}
-            ? "http://localhost:9200/_all/_stats"
-            : "http://$opt{host}:9200/_all/_stats";
+            ? "http://localhost:$opt{port}/_all/_stats"
+            : "http://$opt{host}:$opt{port}/_all/_stats";
     my $index_json = get($index_url);
     my $index_raw_data = JSON->new->decode( $index_json );
     push @index_data, @{ parse_index_stats( $index_raw_data ) };
@@ -332,6 +337,7 @@ Options:
     --manual            print full manual
     --local             Poll localhost and use name reported by ES
     --host|-H           Host to poll for statistics
+    --port              Port to poll for statistics (Default: 9200)
     --format            stats Format (graphite or cacti) (Default: graphite)
     --carbon-base       The prefix to use for carbon metrics (Default: general.es)
     --carbon-server     Send Graphite stats to Carbon Server (Automatically sets format=graphite)
