@@ -8,10 +8,11 @@
 #
 #------------------------------------------------------------------------#
 # Load Carbon Lib
-if [ -e /usr/local/lib/carbon-lib.sh ]; then
-    . /usr/local/lib/carbon-lib.sh
+CARBON_LIB=${CARBON_LIB:=/usr/local/lib/carbon-lib.sh}
+if [ -e "$CARBON_LIB" ]; then
+    . "$CARBON_LIB"
 else
-    echo "unable to load /usr/local/lib/carbon-lib.sh";
+    echo "unable to load $CARBON_LIB";
     exit 1;
 fi;
 
@@ -151,7 +152,7 @@ df -Pl -x tmpfs | while read line; do
     percentage=$5;
     path_orig=$6;
 
-    if [[ "$dev" =~ "^\/dev" ]]; then
+    if [[ "$dev" =~ "/dev" ]]; then
         case "$path_orig" in
                 "/")    path="slash";;
             "/boot")    path="boot";;
@@ -187,17 +188,20 @@ for nic in `/sbin/route -n |grep -v Kernel|grep -v Gateway|awk '{print $8}'|sort
     add_metric "nic.$nic.collisions $collisions";
 done;
 # Grab TCP Connection Data
-/bin/netstat -s --tcp |grep 'connections* opening' | while read line; do
-    set -- $line;
-    add_metric "tcp.connections.$2 $1";
-done;
-tcp_failed=`/bin/netstat -s --tcp |grep 'failed connection attempts'|awk '{print $1}'`;
-add_metric "tcp.connections.failed $tcp_failed";
-# Grab TCP Reset Data
-/bin/netstat -s --tcp |grep reset|grep -v due |awk '{print $1 " " $NF}' | while read line; do
-    set -- $line;
-    add_metric "tcp.resets.$2 $1";
-done;
+tcp_stats=$(mktemp)
+/bin/netstat -s --tcp > $tcp_stats
+    grep 'connections* opening' $tcp_stats| while read line; do
+        set -- $line;
+        add_metric "tcp.connections.$2 $1";
+    done;
+    tcp_failed=`grep 'failed connection attempts' $tcp_stats|awk '{print $1}'`;
+    add_metric "tcp.connections.failed $tcp_failed";
+    # Grab TCP Reset Data
+    grep reset $tcp_stats|grep -v due |awk '{print $1 " " $NF}' | while read line; do
+        set -- $line;
+        add_metric "tcp.resets.$2 $1";
+    done;
+rm -f $tcp_stats;
 # Grab UDP Packet Data
 /bin/netstat -s --udp|grep packets|grep -v unknown | while read line; do
     set -- $line;

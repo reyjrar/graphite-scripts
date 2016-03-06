@@ -23,9 +23,9 @@
 
 #------------------------------------------------------------------------#
 # Carbon Server Configuration
-CARBON_HOST="graphite"
-CARBON_PORT="2003"
-CARBON_BASE="tmp"
+CARBON_HOST=${CARBON_HOST:=graphite}
+CARBON_PORT=${CARBON_PORT:=2003}
+CARBON_BASE=${CARBON_BASE:=tmp}
 
 # Read in System Config
 if [ -f "/etc/sysconfig/carbon-endpoint" ]; then
@@ -66,13 +66,15 @@ declare -r RUN_TIME
 # Function Declarations
 function add_metric() {
     echo "${CARBON_BASE}.${HOST}.$1 $RUN_TIME" >> "$CARBON_STASH";
-    (( $CARBON_DEBUG )) && echo $1;
+    [[ $CARBON_DEBUG -gt 1 ]] && echo $1;
 }
 
 function send_to_carbon() {
     if [ "$CARBON_SEND" != "disabled" ]; then
         nc "$CARBON_HOST" "$CARBON_PORT" < "$CARBON_STASH";
         [[ $CARBON_DEBUG -gt 1 ]] && cat "$CARBON_STASH";
+    else
+        cat "$CARBON_STASH";
     fi;
     rm -f "$CARBON_STASH";
 }
