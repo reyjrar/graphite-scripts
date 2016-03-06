@@ -16,9 +16,7 @@ Some general purposes scripts for sending data to Graphite.
 
    usage: time_to_graphite.sh git-status git status
 
- * perf_elastic_search.pl - grab data from ElasticSearch and send it
-   to graphite or cacti.
+ * perf_elastic_search.pl - REMOVED
 
-   usage:   perf_elastic_search.pl --host=search1 --carbon-server=graphite
-            perf_elastic_search.pl --host=search2 --format=cacti
+    See: https://github.com/reyrar/es-utils/
 
