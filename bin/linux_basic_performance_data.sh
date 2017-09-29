@@ -107,9 +107,12 @@ if [ $rc -eq 0 ]; then
 fi;
 #------------------------------------------------------------------------#
 # Use Free -mo to get memory details
-/usr/bin/free -mob | tail -2 | while read line; do
+/usr/bin/free -mb | while read line; do
     set -- $line;
     k=`echo $1 | tr [A-Z] [a-z] | sed -e s/://`;
+    if [ "$k" != "mem" ] && [ "$k" != "swap" ]; then
+        continue
+    fi
     add_metric "memory.$k.total $2";
     add_metric "memory.$k.used $3";
     add_metric "memory.$k.free $4";
