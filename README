@@ -16,7 +16,7 @@ Some general purposes scripts for sending data to Graphite.
 
    usage: time_to_graphite.sh git-status git status
 
- * perf_elastic_search.pl - REMOVED
+For ElasticSearch related tools, see:
 
     See: https://github.com/reyrar/es-utils/
 
