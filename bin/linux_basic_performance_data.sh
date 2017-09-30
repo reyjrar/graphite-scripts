@@ -89,8 +89,8 @@ if [ -x /usr/bin/mpstat ]; then
         add_metric "cpu.${cpu}.irq $8";
         add_metric "cpu.${cpu}.soft $9";
         add_metric "cpu.${cpu}.steal ${10}";
-        add_metric "cpu.${cpu}.idle ${11}";
-        add_metric "cpu.${cpu}.instr ${12}";
+        add_metric "cpu.${cpu}.guest ${11}";
+        add_metric "cpu.${cpu}.idle ${12}";
     done;
 fi;
 # IO Stats
@@ -210,6 +210,27 @@ rm -f $tcp_stats;
     set -- $line;
     add_metric "udp.packets.$3 $1";
 done;
+
+#------------------------------------------------------------------------#
+# Advanced Network Stats
+cat /proc/net/snmp |sed -e 's/://'|while read line; do
+    if [ -z "$header" ]; then
+        read -a header <<< $( echo $line );
+        # remote the first element
+        header=("${header[@]:1}")
+        continue;
+    else
+        read -a data <<< $( echo $line );
+        class=$( echo ${data[0]} | tr [A-Z] [a-z] );
+        data=("${data[@]:1}")
+        for v in "${data[@]}"; do
+            k="${header[0]}"
+            header=("${header[@]:1}")
+            add_metric "netstat.$class.$k $v";
+        done
+    fi
+done
+
 #------------------------------------------------------------------------#
 # SEND THE UPDATES TO CARBON
 send_to_carbon;
