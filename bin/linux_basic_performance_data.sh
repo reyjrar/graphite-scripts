@@ -80,16 +80,17 @@ fi;
 if [ -x /usr/bin/mpstat ]; then
     /usr/bin/mpstat -P ALL |grep '^[0-9]' | grep -v CPU | while read line; do
         set -- $line;
-        cpu=$3;
+        cpu=$2;
 
-        add_metric "cpu.${cpu}.user $4";
-        add_metric "cpu.${cpu}.nice $5";
-        add_metric "cpu.${cpu}.system $6";
-        add_metric "cpu.${cpu}.iowait $7";
-        add_metric "cpu.${cpu}.irq $8";
-        add_metric "cpu.${cpu}.soft $9";
-        add_metric "cpu.${cpu}.steal ${10}";
-        add_metric "cpu.${cpu}.guest ${11}";
+        add_metric "cpu.${cpu}.user $3";
+        add_metric "cpu.${cpu}.nice $4";
+        add_metric "cpu.${cpu}.system $5";
+        add_metric "cpu.${cpu}.iowait $6";
+        add_metric "cpu.${cpu}.irq $7";
+        add_metric "cpu.${cpu}.soft $8";
+        add_metric "cpu.${cpu}.steal $9";
+        add_metric "cpu.${cpu}.guest ${10}";
+        add_metric "cpu.${cpu}.gnice ${11}";
         add_metric "cpu.${cpu}.idle ${12}";
     done;
 fi;
