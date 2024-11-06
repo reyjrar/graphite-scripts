@@ -106,8 +106,8 @@ if [ $rc -eq 0 ]; then
     add_metric "iostat.idle $6";
 fi;
 #------------------------------------------------------------------------#
-# Use Free -mo to get memory details
-/usr/bin/free -mb | while read line; do
+# Use Free -b to get memory details
+/usr/bin/free -b | while read line; do
     set -- $line;
     k=`echo $1 | tr [A-Z] [a-z] | sed -e s/://`;
     if [ "$k" != "mem" ] && [ "$k" != "swap" ]; then
