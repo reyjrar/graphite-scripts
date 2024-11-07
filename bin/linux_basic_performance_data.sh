@@ -146,7 +146,7 @@ if [ ${#disks} -gt 0 ]; then
     fi;
 fi;
 # File System Data
-df -Pl -x tmpfs | while read line; do
+df -Pl -x tmpfs -B1 | while read line; do
     set -- $line;
 
     dev=$1;
