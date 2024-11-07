@@ -78,7 +78,7 @@ fi;
 #------------------------------------------------------------------------#
 # CPU Stats
 if [ -x /usr/bin/mpstat ]; then
-    /usr/bin/mpstat -P ALL |grep '^[0-9]' | grep -v CPU | while read line; do
+    S_TIME_FORMAT=ISO /usr/bin/mpstat -P ALL |grep '^[0-9]' | grep -v CPU | while read line; do
         set -- $line;
         cpu=$2;
 
