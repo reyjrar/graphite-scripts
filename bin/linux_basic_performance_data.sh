@@ -171,25 +171,22 @@ done;
 # Network Statistics
 for nic in `/sbin/route -n |grep -v Kernel|grep -v Gateway|awk '{print $8}'|sort -u`; do
     (( $CARBON_DEBUG )) && echo "Fetching interface statistics for $nic";
-    /sbin/ifconfig $nic |grep packets| while read line; do
-        set -- $line;
-        direction=`echo $1|tr '[A-Z]' '[a-z]'`;
-        tmp=($@); fields=(${tmp[@]:1});
-        for statistic in "${fields[@]}"; do
-            k=`echo $statistic|cut -d: -f 1`;
-            v=`echo $statistic|cut -d: -f 2`;
-            add_metric "nic.$nic.$direction.$k $v";
-        done;
+    /sbin/ifconfig $nic | grep -v ^$nic| while read line; do
+        arr=($line);
+        direction="${arr[0],,}";
+        if [ "$direction" == "rx" ] || [ "$direction" == "tx" ]; then
+            len=${#arr[@]};
+            max=$len-1;
+            for (( i=1 ; i < max ; i += 2 )); do
+                k="${arr[$i],,}"
+                v="${arr[$i+1]}"
+
+                if [[ "$k" =~ ^[[:alpha:]] ]]; then
+                    add_metric "nic.$nic.$direction.$k $v";
+                fi
+            done
+        fi
     done;
-    /sbin/ifconfig $nic |grep bytes| while read line; do
-        set -- $line;
-        rx_bytes=`echo $2 | cut -d: -f 2`;
-        tx_bytes=`echo $6 | cut -d: -f 2`;
-        add_metric "nic.$nic.rx.bytes $rx_bytes";
-        add_metric "nic.$nic.tx.bytes $tx_bytes";
-    done;
-    collisions=`/sbin/ifconfig $nic |grep collisions|awk '{print $1}'|cut -d: -f2`;
-    add_metric "nic.$nic.collisions $collisions";
 done;
 # Grab TCP Connection Data
 tcp_stats=$(mktemp)
